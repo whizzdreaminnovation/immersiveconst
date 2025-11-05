@@ -1,0 +1,364 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Constitution Museum — Immersive Scroll</title>
+<meta name="description" content="An interactive, scroll-driven story of India's Constitution using images from the JGU Constitution Museum." />
+<style>
+  :root{
+    --brand:#ea580c; --ink:#0f172a; --muted:#64748b;
+    --paper:#fff; --wash:#0b1020; --glow:#ffedd5;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:#05060a;color:#eef2ff;font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif}
+  a{color:inherit;text-decoration:none}
+
+  /* --- Shell --- */
+  .nav{
+    position:fixed; inset:20px auto auto 20px; z-index:50;
+    background:rgba(255,255,255,.08); backdrop-filter: blur(10px);
+    border:1px solid rgba(255,255,255,.15); color:#fff;
+    padding:10px 14px; border-radius:14px; display:flex; gap:12px; align-items:center;
+  }
+  .nav b{letter-spacing:.04em}
+  .nav .dot{width:8px;height:8px;border-radius:50%;background:linear-gradient(135deg,#f97316,#ef4444);box-shadow:0 0 12px #f97316}
+
+  .hint{
+    position:fixed; right:16px; bottom:16px; z-index:40;
+    color:#cbd5e1; font-size:13px; opacity:.9; background:rgba(15,23,42,.5);
+    padding:8px 12px; border-radius:12px; border:1px solid rgba(255,255,255,.1)
+  }
+
+  /* --- Sections --- */
+  .section{
+    position:relative; min-height:100vh; width:100%;
+    display:grid; place-items:center; overflow:hidden;
+  }
+  .bg{
+    position:absolute; inset:-5%; background-size:cover; background-position:center;
+    transform:scale(1.05); filter:contrast(1.03) saturate(1.1) brightness(.9);
+    transition:transform 8s ease, filter 1s ease;
+  }
+  .section.is-active .bg{ transform:scale(1.12); }
+  .veil{
+    position:absolute; inset:0; background:radial-gradient(80% 80% at 50% 50%, rgba(0,0,0,.1), rgba(0,0,0,.55) 65%, rgba(0,0,0,.8));
+    pointer-events:none;
+  }
+
+  .content{
+    position:relative; z-index:2; max-width:1000px; padding:24px; margin:0 20px;
+    text-align:center; color:#fff; transform:translateY(10px); opacity:0;
+    transition:all .9s cubic-bezier(.22,.61,.36,1);
+  }
+  .section.is-active .content{ transform:translateY(0); opacity:1; }
+
+  h1{font-size:clamp(28px,5vw,64px); line-height:1.05; margin:0 0 10px; text-shadow:0 12px 40px rgba(0,0,0,.55)}
+  p.lead{font-size:clamp(16px,2.4vw,20px); color:#e2e8f0; margin:0 auto; max-width:800px}
+  .pill{display:inline-flex; gap:8px; align-items:center; background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.18); padding:8px 12px; border-radius:999px; font-size:13px; color:#f8fafc}
+
+  /* --- Hotspots --- */
+  .hotspot{
+    position:absolute; width:22px; height:22px; border-radius:50%;
+    background:radial-gradient(circle at 30% 30%, #fff, #fbbf24 55%, #ea580c);
+    box-shadow:0 0 0 8px rgba(234,88,12,.18), 0 0 24px rgba(250,204,21,.35);
+    cursor:pointer; transition:transform .2s ease;
+  }
+  .hotspot:hover{ transform:scale(1.15) }
+  .tooltip{
+    position:absolute; transform:translate(-50%,-110%); min-width:200px;
+    background:rgba(0,0,0,.78); color:#fff; padding:10px 12px; border-radius:10px;
+    border:1px solid rgba(255,255,255,.15); font-size:13px; display:none; white-space:nowrap
+  }
+  .hotspot:focus + .tooltip, .hotspot:hover + .tooltip{ display:block }
+
+  /* --- Lightbox --- */
+  .lightbox{ position:fixed; inset:0; background:rgba(0,0,0,.9); display:none; place-items:center; z-index:60}
+  .lightbox.open{ display:grid }
+  .lb-img{max-width:92vw; max-height:82vh; border-radius:12px; box-shadow:0 30px 80px rgba(0,0,0,.6)}
+  .lb-close{ position:absolute; top:18px; right:18px; background:#111827; color:#fff; border:1px solid #fff2; padding:8px 12px; border-radius:10px; cursor:pointer }
+
+  /* --- Gallery strip --- */
+  .strip{display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:10px; padding:20px}
+  .thumb{position:relative; overflow:hidden; border-radius:10px; border:1px solid #fff2; cursor:pointer}
+  .thumb img{width:100%; height:220px; object-fit:cover; transition:transform .6s ease}
+  .thumb:hover img{ transform:scale(1.06) }
+
+  /* --- Parallax pointer --- */
+  .parallax{ transform:translateZ(0); will-change:transform; transition:transform .2s ease-out }
+
+  /* --- QUIZ --- */
+  .quiz-wrap{max-width:900px;margin:0 auto;padding:20px}
+  .quiz-card{background:#0b1220;border:1px solid #fff2;border-radius:16px;padding:18px;color:#e5e7eb}
+  .q{margin:0 0 12px;font-weight:700}
+  .opts{display:grid;gap:10px}
+  .opt{background:#111827;border:1px solid #334155;border-radius:12px;padding:12px;cursor:pointer;text-align:left}
+  .opt.correct{border-color:#16a34a;background:#052e1b}
+  .opt.wrong{border-color:#dc2626;background:#2a0b0b}
+  .quiz-actions{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap;justify-content:center}
+  .btn-sm{background:#ea580c;color:#fff;border:none;border-radius:10px;padding:10px 14px;font-weight:700;cursor:pointer}
+  .badge-box{display:none;margin-top:14px;padding:16px;border-radius:14px;background:linear-gradient(135deg,#f97316,#ef4444);color:#fff;text-align:center;font-weight:800}
+</style>
+</head>
+<body>
+
+<!-- floating nav -->
+<div class="nav">
+  <span class="dot"></span>
+  <b>Constitution Museum</b>
+  <span class="pill">Interactive scroll + quiz</span>
+</div>
+
+<!-- scroll hint -->
+<div class="hint">Scroll (or ↑/↓) · Tap dots to learn · Click image to open</div>
+
+<!-- SECTION 1 -->
+<section class="section" data-bg="images/scene1.jpg">
+  <div class="bg parallax"></div><div class="veil"></div>
+  <div class="content">
+    <h1 class="parallax">Rights in Living Color</h1>
+    <p class="lead">Freedom · Equality · Dignity — an immersive journey through India’s Constitution at O.P. Jindal Global University.</p>
+  </div>
+  <div class="hotspot" style="left:24%; top:42%" tabindex="0"></div>
+  <div class="tooltip" style="left:24%; top:42%">Right to Freedom — Art. 19(1)(a): Speech & Expression</div>
+</section>
+
+<!-- SECTION 2 -->
+<section class="section" data-bg="images/scene2.jpg">
+  <div class="bg parallax"></div><div class="veil"></div>
+  <div class="content">
+    <h1 class="parallax">Stories of Resolve</h1>
+    <p class="lead">Struggles and sacrifices remind us that rights were earned — and must be exercised responsibly.</p>
+  </div>
+  <div class="hotspot" style="left:65%; top:38%" tabindex="0"></div>
+  <div class="tooltip" style="left:65%; top:38%">Due process · Art. 21 — Life & Personal Liberty</div>
+</section>
+
+<!-- SECTION 3 -->
+<section class="section" data-bg="images/scene3.jpg">
+  <div class="bg parallax"></div><div class="veil"></div>
+  <div class="content">
+    <h1 class="parallax">The Handwritten Constitution</h1>
+    <p class="lead">A work of art and law. Explore the calligraphy, motifs, and the principles woven into every page.</p>
+  </div>
+  <div class="hotspot" style="left:50%; top:62%" tabindex="0"></div>
+  <div class="tooltip" style="left:50%; top:62%">Preamble: Justice · Liberty · Equality · Fraternity</div>
+</section>
+
+<!-- SECTION 4 -->
+<section class="section" data-bg="images/scene4.jpg">
+  <div class="bg parallax"></div><div class="veil"></div>
+  <div class="content">
+    <h1 class="parallax">Wheel of Duty</h1>
+    <p class="lead">The Ashoka Chakra — a reminder that rights & duties co-exist in a living democracy.</p>
+  </div>
+  <div class="hotspot" style="left:52%; top:44%" tabindex="0"></div>
+  <div class="tooltip" style="left:52%; top:44%">Fundamental Duties · Art. 51A</div>
+</section>
+
+<!-- SECTION 5 -->
+<section class="section" data-bg="images/scene5.jpg">
+  <div class="bg parallax"></div><div class="veil"></div>
+  <div class="content">
+    <h1 class="parallax">Unity in Diversity</h1>
+    <p class="lead">From Kashmir to Kanyakumari — one Constitution, many identities, shared values.</p>
+  </div>
+  <div class="hotspot" style="left:56%; top:48%" tabindex="0"></div>
+  <div class="tooltip" style="left:56%; top:48%">Equality before Law · Arts. 14–15</div>
+</section>
+
+<!-- SECTION 6 -->
+<section class="section" data-bg="images/scene6.jpg">
+  <div class="bg parallax"></div><div class="veil"></div>
+  <div class="content">
+    <h1 class="parallax">We, the People</h1>
+    <p class="lead">A Constitution is a conversation across generations. Add your voice — exercise your rights.</p>
+  </div>
+  <div class="hotspot" style="left:72%; top:42%" tabindex="0"></div>
+  <div class="tooltip" style="left:72%; top:42%">Right to Education · Art. 21A</div>
+</section>
+
+<!-- QUIZ SECTION (at the end) -->
+<section class="section" style="background:#070a14">
+  <div class="content" style="opacity:1;transform:none">
+    <h1>Quick Quiz: How was the Constitution made?</h1>
+    <p class="lead">Answer 3 questions. Score 2+ to unlock your badge.</p>
+    <div class="quiz-wrap">
+      <div id="quiz" class="quiz-card"></div>
+      <div class="quiz-actions">
+        <button id="submitQuiz" class="btn-sm">Submit</button>
+        <button id="retryQuiz" class="btn-sm" style="background:#0ea5e9">Try again</button>
+        <button id="shareQuiz" class="btn-sm" style="background:#22c55e">Share result</button>
+      </div>
+      <div id="badgeBox" class="badge-box">🏆 Constitution Starter Badge — Great job!</div>
+    </div>
+  </div>
+</section>
+
+<!-- GALLERY STRIP -->
+<section class="section" style="min-height:auto; padding:30px 0; background:#0a0d18">
+  <div class="content" style="opacity:1; transform:none">
+    <h1>Gallery</h1>
+    <p class="lead">Click any image to view full-screen.</p>
+  </div>
+  <div class="strip" id="strip">
+    <div class="thumb"><img src="images/scene1.jpg" alt=""></div>
+    <div class="thumb"><img src="images/scene2.jpg" alt=""></div>
+    <div class="thumb"><img src="images/scene3.jpg" alt=""></div>
+    <div class="thumb"><img src="images/scene4.jpg" alt=""></div>
+    <div class="thumb"><img src="images/scene5.jpg" alt=""></div>
+    <div class="thumb"><img src="images/scene6.jpg" alt=""></div>
+  </div>
+</section>
+
+<!-- LIGHTBOX -->
+<div class="lightbox" id="lightbox">
+  <button class="lb-close" id="lbClose">Close ✕</button>
+  <img class="lb-img" id="lbImg" src="" alt=""/>
+</div>
+
+<script>
+/* ---- preload + set backgrounds ---- */
+const sections = [...document.querySelectorAll('.section')];
+sections.forEach(sec=>{
+  const url = sec.dataset.bg;
+  if(!url) return;
+  const bg = sec.querySelector('.bg');
+  bg.style.backgroundImage = `url('${url}')`;
+  const img = new Image(); img.src = url; // warm cache
+});
+
+/* ---- activate section on view ---- */
+const io = new IntersectionObserver(entries=>{
+  entries.forEach(e=>{
+    if(e.isIntersecting){ e.target.classList.add('is-active'); }
+  });
+},{ threshold:.5 });
+sections.forEach(s=>io.observe(s));
+
+/* ---- parallax on mouse ---- */
+document.addEventListener('mousemove', e=>{
+  const cx = window.innerWidth/2, cy = window.innerHeight/2;
+  const dx = (e.clientX - cx)/cx, dy = (e.clientY - cy)/cy;
+  document.querySelectorAll('.parallax').forEach(el=>{
+    el.style.transform = `translate(${dx*8}px, ${dy*6}px)`;
+  });
+});
+
+/* ---- keyboard nav (↑/↓) ---- */
+function scrollToSection(idx){
+  if(idx<0||idx>=sections.length) return;
+  sections[idx].scrollIntoView({behavior:'smooth', block:'start'});
+}
+document.addEventListener('keydown', e=>{
+  const i = sections.findIndex(s => s.getBoundingClientRect().top >= -5 && s.getBoundingClientRect().top < window.innerHeight/2);
+  if(e.key==='ArrowDown') scrollToSection(Math.min(i+1, sections.length-1));
+  if(e.key==='ArrowUp')   scrollToSection(Math.max(i-1, 0));
+});
+
+/* ---- lightbox for gallery ---- */
+const lb = document.getElementById('lightbox');
+const lbImg = document.getElementById('lbImg');
+document.getElementById('strip').addEventListener('click', e=>{
+  const img = e.target.closest('img'); if(!img) return;
+  lb.classList.add('open'); lbImg.src = img.src;
+});
+document.getElementById('lbClose').onclick = ()=> lb.classList.remove('open');
+lb.addEventListener('click', (e)=>{ if(e.target===lb) lb.classList.remove('open'); });
+
+/* ---- make backgrounds clickable to open full view ---- */
+document.querySelectorAll('.section .bg').forEach(bg=>{
+  bg.style.cursor='zoom-in';
+  bg.addEventListener('click', ()=>{
+    const url = getComputedStyle(bg).backgroundImage.replace(/^url\(["']?(.+?)["']?\)$/,'$1');
+    lb.classList.add('open'); lbImg.src = url;
+  });
+});
+
+/* ---- QUIZ ---- */
+const QUIZ = [
+  {
+    q: "Who chaired the Drafting Committee of the Indian Constitution?",
+    a: ["Dr. B. R. Ambedkar","Jawaharlal Nehru","Sardar Patel","Rajendra Prasad"],
+    correct: 0
+  },
+  {
+    q: "The Constituent Assembly adopted the Constitution on:",
+    a: ["26 January 1950","26 November 1949","15 August 1947","2 October 1949"],
+    correct: 1
+  },
+  {
+    q: "About how long did the Constituent Assembly take to frame it?",
+    a: ["11 months","2 years 11 months 18 days","5 years","9 months"],
+    correct: 1
+  }
+];
+
+const quizEl = document.getElementById('quiz');
+const badgeBox = document.getElementById('badgeBox');
+const submitBtn = document.getElementById('submitQuiz');
+const retryBtn = document.getElementById('retryQuiz');
+const shareBtn = document.getElementById('shareQuiz');
+
+let picks = new Array(QUIZ.length).fill(null);
+
+function renderQuiz(){
+  quizEl.innerHTML = QUIZ.map((item, i)=>`
+    <div class="q">${i+1}. ${item.q}</div>
+    <div class="opts">
+      ${item.a.map((opt,j)=>`
+        <button class="opt" data-q="${i}" data-a="${j}">${String.fromCharCode(65+j)}. ${opt}</button>
+      `).join('')}
+    </div>
+  `).join('<hr style="border-color:#1f2937;margin:14px 0">');
+  badgeBox.style.display = 'none';
+}
+renderQuiz();
+
+quizEl.addEventListener('click', e=>{
+  const btn = e.target.closest('.opt'); if(!btn) return;
+  const qi = +btn.dataset.q, ai = +btn.dataset.a;
+  // clear previous selection styling for this question
+  quizEl.querySelectorAll(`.opt[data-q="${qi}"]`).forEach(b=>{ b.classList.remove('correct','wrong'); });
+  // mark selected (temporary visual)
+  btn.classList.add('correct');
+  picks[qi] = ai;
+});
+
+submitBtn.addEventListener('click', ()=>{
+  let score = 0;
+  QUIZ.forEach((item,i)=>{
+    const chosen = picks[i];
+    quizEl.querySelectorAll(`.opt[data-q="${i}"]`).forEach(b=>{
+      const ai = +b.dataset.a;
+      b.classList.remove('correct','wrong');
+      if(ai === item.correct) b.classList.add('correct');
+      if(chosen !== null && ai === chosen && chosen !== item.correct) b.classList.add('wrong');
+    });
+    if(chosen === item.correct) score++;
+  });
+  if(score >= 2){
+    badgeBox.style.display = 'block';
+    localStorage.setItem('jgu_const_badge','starter');
+  } else {
+    badgeBox.style.display = 'none';
+    alert(`Score: ${score}/${QUIZ.length}. Get at least 2 to unlock the badge.`);
+  }
+});
+
+retryBtn.addEventListener('click', ()=>{
+  picks = new Array(QUIZ.length).fill(null);
+  renderQuiz();
+});
+
+shareBtn.addEventListener('click', async ()=>{
+  const has = localStorage.getItem('jgu_const_badge') === 'starter';
+  const msg = has
+    ? "I earned the 🏆 Constitution Starter Badge at the JGU Constitution Museum!"
+    : "I’m taking the Constitution Museum quiz — can you beat my score?";
+  try { await navigator.clipboard.writeText(msg); alert("Copied! Paste it anywhere to share."); }
+  catch { window.prompt("Copy this:", msg); }
+});
+</script>
+</body>
+</html>
