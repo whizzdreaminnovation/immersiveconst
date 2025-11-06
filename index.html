@@ -72,10 +72,11 @@
   }
   .hotspot:focus + .tooltip, .hotspot:hover + .tooltip{ display:block }
 
-  /* --- Lightbox --- */
+  /* --- Lightbox (image + video) --- */
   .lightbox{ position:fixed; inset:0; background:rgba(0,0,0,.9); display:none; place-items:center; z-index:60}
   .lightbox.open{ display:grid }
   .lb-img{max-width:92vw; max-height:82vh; border-radius:12px; box-shadow:0 30px 80px rgba(0,0,0,.6)}
+  .lb-video{max-width:92vw; max-height:82vh; border-radius:12px; box-shadow:0 30px 80px rgba(0,0,0,.6); display:none; background:#000}
   .lb-close{ position:absolute; top:18px; right:18px; background:#111827; color:#fff; border:1px solid #fff2; padding:8px 12px; border-radius:10px; cursor:pointer }
 
   /* --- Gallery strip --- */
@@ -98,6 +99,19 @@
   .quiz-actions{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap;justify-content:center}
   .btn-sm{background:#ea580c;color:#fff;border:none;border-radius:10px;padding:10px 14px;font-weight:700;cursor:pointer}
   .badge-box{display:none;margin-top:14px;padding:16px;border-radius:14px;background:linear-gradient(135deg,#f97316,#ef4444);color:#fff;text-align:center;font-weight:800}
+
+  /* --- Play button for video scenes --- */
+  .playbtn{
+    position:absolute; left:50%; bottom:28px; transform:translateX(-50%);
+    width:58px; height:58px; border-radius:50%;
+    background:radial-gradient(circle at 35% 35%, #fff, #f59e0b 55%, #ea580c);
+    box-shadow:0 0 0 10px rgba(234,88,12,.18), 0 10px 30px rgba(0,0,0,.45);
+    display:grid; place-items:center; cursor:pointer; z-index:3;
+  }
+  .playbtn:before{
+    content:""; width:0; height:0; border-left:16px solid #111827; border-top:10px solid transparent; border-bottom:10px solid transparent; margin-left:3px;
+  }
+  .playbtn:hover{ transform:translateX(-50%) scale(1.06); }
 </style>
 </head>
 <body>
@@ -113,7 +127,7 @@
 <div class="hint">Scroll (or ↑/↓) · Tap dots to learn · Click image to open</div>
 
 <!-- SECTION 1 -->
-<section class="section" data-bg="scene1.jpg">
+<section class="section" data-bg="scene1.jpg" data-video="vid1.mp4">
   <div class="bg parallax"></div><div class="veil"></div>
   <div class="content">
     <h1 class="parallax">Rights in Living Color</h1>
@@ -124,7 +138,7 @@
 </section>
 
 <!-- SECTION 2 -->
-<section class="section" data-bg="scene2.jpg">
+<section class="section" data-bg="scene2.jpg" data-video="vid2.mp4">
   <div class="bg parallax"></div><div class="veil"></div>
   <div class="content">
     <h1 class="parallax">Stories of Resolve</h1>
@@ -135,7 +149,7 @@
 </section>
 
 <!-- SECTION 3 -->
-<section class="section" data-bg="scene3.jpg">
+<section class="section" data-bg="scene3.jpg" data-video="vid3.mp4">
   <div class="bg parallax"></div><div class="veil"></div>
   <div class="content">
     <h1 class="parallax">The Handwritten Constitution</h1>
@@ -146,7 +160,7 @@
 </section>
 
 <!-- SECTION 4 -->
-<section class="section" data-bg="scene4.jpg">
+<section class="section" data-bg="scene4.jpg" data-video="vid4.mp4">
   <div class="bg parallax"></div><div class="veil"></div>
   <div class="content">
     <h1 class="parallax">Wheel of Duty</h1>
@@ -157,7 +171,7 @@
 </section>
 
 <!-- SECTION 5 -->
-<section class="section" data-bg="scene5.jpg">
+<section class="section" data-bg="scene5.jpg" data-video="vid5.mp4">
   <div class="bg parallax"></div><div class="veil"></div>
   <div class="content">
     <h1 class="parallax">Unity in Diversity</h1>
@@ -168,7 +182,7 @@
 </section>
 
 <!-- SECTION 6 -->
-<section class="section" data-bg="scene6.jpg">
+<section class="section" data-bg="scene6.jpg" data-video="vid6.mp4">
   <div class="bg parallax"></div><div class="veil"></div>
   <div class="content">
     <h1 class="parallax">We, the People</h1>
@@ -202,19 +216,27 @@
     <p class="lead">Click any image to view full-screen.</p>
   </div>
   <div class="strip" id="strip">
+    <!-- image thumbs -->
     <div class="thumb"><img src="scene1.jpg" alt=""></div>
     <div class="thumb"><img src="scene2.jpg" alt=""></div>
     <div class="thumb"><img src="scene3.jpg" alt=""></div>
     <div class="thumb"><img src="scene4.jpg" alt=""></div>
     <div class="thumb"><img src="scene5.jpg" alt=""></div>
     <div class="thumb"><img src="scene6.jpg" alt=""></div>
+
+    <!-- optional: video thumbs (click ▶ to open video) -->
+    <div class="thumb" data-video="vid2.mp4" style="position:relative">
+      <img src="scene2.jpg" alt="">
+      <span style="position:absolute;right:10px;bottom:10px;background:#000a;color:#fff;border:1px solid #fff3;border-radius:8px;padding:4px 8px;font-size:12px">▶ Video</span>
+    </div>
   </div>
 </section>
 
-<!-- LIGHTBOX -->
+<!-- LIGHTBOX (image + video) -->
 <div class="lightbox" id="lightbox">
   <button class="lb-close" id="lbClose">Close ✕</button>
   <img class="lb-img" id="lbImg" src="" alt=""/>
+  <video class="lb-video" id="lbVid" controls playsinline preload="metadata"></video>
 </div>
 
 <script>
@@ -226,6 +248,17 @@ sections.forEach(sec=>{
   const bg = sec.querySelector('.bg');
   bg.style.backgroundImage = `url('${url}')`;
   const img = new Image(); img.src = url; // warm cache
+});
+
+/* ---- add play buttons where data-video exists ---- */
+sections.forEach(sec=>{
+  const clip = sec.dataset.video;
+  if(!clip) return;
+  const btn = document.createElement('button');
+  btn.className = 'playbtn';
+  btn.setAttribute('aria-label','Play video');
+  btn.addEventListener('click', ()=> openLightbox('video', clip));
+  sec.appendChild(btn);
 });
 
 /* ---- activate section on view ---- */
@@ -256,23 +289,44 @@ document.addEventListener('keydown', e=>{
   if(e.key==='ArrowUp')   scrollToSection(Math.max(i-1, 0));
 });
 
-/* ---- lightbox for gallery ---- */
+/* ---- lightbox logic (image + video) ---- */
 const lb = document.getElementById('lightbox');
 const lbImg = document.getElementById('lbImg');
-document.getElementById('strip').addEventListener('click', e=>{
-  const img = e.target.closest('img'); if(!img) return;
-  lb.classList.add('open'); lbImg.src = img.src;
-});
-document.getElementById('lbClose').onclick = ()=> lb.classList.remove('open');
-lb.addEventListener('click', (e)=>{ if(e.target===lb) lb.classList.remove('open'); });
+const lbVid = document.getElementById('lbVid');
 
-/* ---- make backgrounds clickable to open full view ---- */
+function openLightbox(kind, src){
+  lb.classList.add('open');
+  if(kind === 'image'){
+    lbVid.pause(); lbVid.removeAttribute('src'); lbVid.style.display='none';
+    lbImg.style.display='block'; lbImg.src = src;
+  } else {
+    lbImg.removeAttribute('src'); lbImg.style.display='none';
+    lbVid.style.display='block'; lbVid.src = src; lbVid.currentTime = 0;
+    lbVid.play().catch(()=>{}); // user-gesture already happened
+  }
+}
+
+document.getElementById('lbClose').onclick = ()=>{
+  lb.classList.remove('open');
+  lbVid.pause();
+};
+lb.addEventListener('click', (e)=>{ if(e.target===lb){ lb.classList.remove('open'); lbVid.pause(); } });
+
+/* clicking a background opens the image as before */
 document.querySelectorAll('.section .bg').forEach(bg=>{
   bg.style.cursor='zoom-in';
   bg.addEventListener('click', ()=>{
     const url = getComputedStyle(bg).backgroundImage.replace(/^url\(["']?(.+?)["']?\)$/,'$1');
-    lb.classList.add('open'); lbImg.src = url;
+    openLightbox('image', url);
   });
+});
+
+/* gallery click: supports images and items with data-video */
+document.getElementById('strip').addEventListener('click', e=>{
+  const el = e.target.closest('[data-video], img');
+  if(!el) return;
+  if(el.dataset && el.dataset.video){ openLightbox('video', el.dataset.video); }
+  else if(el.tagName === 'IMG'){ openLightbox('image', el.src); }
 });
 
 /* ---- QUIZ ---- */
@@ -318,10 +372,8 @@ renderQuiz();
 quizEl.addEventListener('click', e=>{
   const btn = e.target.closest('.opt'); if(!btn) return;
   const qi = +btn.dataset.q, ai = +btn.dataset.a;
-  // clear previous selection styling for this question
   quizEl.querySelectorAll(`.opt[data-q="${qi}"]`).forEach(b=>{ b.classList.remove('correct','wrong'); });
-  // mark selected (temporary visual)
-  btn.classList.add('correct');
+  btn.classList.add('correct'); // temporary highlight
   picks[qi] = ai;
 });
 
@@ -362,3 +414,4 @@ shareBtn.addEventListener('click', async ()=>{
 </script>
 </body>
 </html>
+
